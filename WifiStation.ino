@@ -1,0 +1,144 @@
+#include <avr/sleep.h>
+#include <avr/power.h>
+#include <IRremote.h>
+#include <U8glib.h>
+const unsigned char PROGMEM wen[] = {
+0x00,0x00,0x23,0xF8,0x12,0x08,0x12,0x08,0x83,0xF8,0x42,0x08,0x42,0x08,0x13,0xF8,
+0x10,0x00,0x27,0xFC,0xE4,0xA4,0x24,0xA4,0x24,0xA4,0x24,0xA4,0x2F,0xFE,0x00,0x00
+};
+const unsigned char PROGMEM ming[] = {
+0x00,0x00,0x00,0xFC,0x7C,0x84,0x44,0x84,0x44,0x84,0x44,0xFC,0x7C,0x84,0x44,0x84,
+0x44,0x84,0x44,0xFC,0x7C,0x84,0x44,0x84,0x01,0x04,0x01,0x04,0x02,0x14,0x04,0x08
+};
+const unsigned char PROGMEM hao[] = {
+0x00,0x40,0x22,0x40,0x12,0x40,0x13,0xFC,0x84,0x40,0x48,0x40,0x40,0x40,0x17,0xFE,
+0x10,0x00,0x20,0x00,0xE3,0xF8,0x22,0x08,0x22,0x08,0x22,0x08,0x23,0xF8,0x02,0x08
+};
+const unsigned char PROGMEM wenn[] = {
+0x00,0x00,0x23,0xF8,0x12,0x08,0x12,0x08,0x83,0xF8,0x42,0x08,0x42,0x08,0x13,0xF8,
+0x10,0x00,0x27,0xFC,0xE4,0xA4,0x24,0xA4,0x24,0xA4,0x24,0xA4,0x2F,0xFE,0x00,0x00
+};
+const unsigned char PROGMEM yang[] = {
+0x00,0x00,0x7C,0x00,0x45,0xFC,0x49,0x04,0x49,0x04,0x51,0x04,0x49,0x04,0x49,0x04,
+0x45,0xFC,0x45,0x04,0x45,0x04,0x69,0x04,0x51,0x04,0x41,0x04,0x41,0xFC,0x41,0x04
+};
+const unsigned char PROGMEM er[] = {
+0x00,0x00,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x00,0x00,0x00,
+0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x00
+};
+const unsigned char PROGMEM yao[] = {
+0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x00,
+0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+};
+const unsigned char PROGMEM ling[] = {
+0x08,0x30,0xA0,0xAA,0xAA,0xAA,0xA1,0xFE,0xA1,0xAA,0xAA,0xAA,0xA0,0x28,0x30,0x00,
+0x20,0x20,0x40,0x50,0x90,0x94,0x54,0x32,0x12,0x95,0x98,0x40,0x40,0x20,0x20,0x00
+};
+
+int RECV_PIN = 10;
+IRrecv irrecv(RECV_PIN);
+decode_results results;
+
+#define INTERVAL_LCD             20             //定义OLED刷新时间间隔  
+unsigned long lcd_time = millis();                 //OLED刷新时间计时器
+U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NONE);     //设置OLED型号  
+//-------字体设置，大、中、小
+#define setFont_L u8g.setFont(u8g_font_7x13)
+#define setFont_M u8g.setFont(u8g_font_fixed_v0r)
+#define setFont_S u8g.setFont(u8g_font_fixed_v0r)
+#define setFont_SS u8g.setFont(u8g_font_fub25n)
+ 
+int pin2 = 2;//触摸开关接D2
+ 
+long previousMillis = 0;        // 存储LED最后一次的更新
+long interval = 5000;           // 闪烁的时间间隔（毫秒）
+unsigned long currentMillis=0;
+
+/***************************************************
+ *  函数名:        pin2Interrupt
+ *  返回值:     Nothing.
+ *  参数值:  None.
+ *  释义: 服务pin2中断请求    
+ ***************************************************/
+void pin2Interrupt(void) {
+    /* 中断唤醒 */
+ 
+    /*当中断引脚为低电平时关闭中断*/
+    Serial.println("wake up!!!");
+    detachInterrupt(0);
+}
+ 
+/***************************************************
+ *  Name:        enterSleep
+ *  Returns:     Nothing.
+ *  Parameters:  None.
+ *  Description: 进入睡眠模式.
+ ***************************************************/
+void enterSleep(void) {
+
+    attachInterrupt(0, pin2Interrupt, LOW);
+    delay(100);
+    set_sleep_mode(SLEEP_MODE_PWR_DOWN);//控制处理器进入睡眠模式
+    sleep_enable();
+    sleep_mode();
+    sleep_disable();
+}
+ 
+/***************************************************
+ *  Name:        setup
+ *  Returns:     Nothing.
+ *  Parameters:  None.
+ *  Description: Setup for the Arduino.           
+ ***************************************************/
+void setup() {
+    Serial.begin(9600);//初始化串口
+    /* Setup the pin direction. */
+    pinMode(pin2, INPUT);//设置端口模式为输入
+    irrecv.enableIRIn(); // 启动红外解码
+    Serial.println("Initialisation complete.");
+}
+ 
+/***************************************************
+ *  Name:        loop
+ *  Returns:     Nothing.
+ *  Parameters:  None.
+ *  Description: Main application loop.
+ ***************************************************/
+void loop() {
+    currentMillis = millis();//读取系统计时器
+    Serial.print("Awake for ");
+    Serial.print(currentMillis - previousMillis, DEC);//计算清醒时间
+    Serial.println(" second");
+    delay(1000);
+
+    if (irrecv.decode(&results)) {
+      Serial.println(results.value, HEX);//串口打印接收的红外信息
+  
+      u8g.firstPage();//u8glib规定的写法
+      do {
+          setFont_L;
+        u8g.setPrintPos(4, 16);//选择位置
+        //u8g.print(results.value,HEX);//写入字符串
+         switch(results.value){
+      case 0X1FE807F:u8g.drawBitmapP(0, 0, 2, 16, wen);u8g.drawBitmapP(16, 0, 2, 16, ming);u8g.drawBitmapP(32, 0, 2, 16, hao);
+      break;
+      case 0X1FE40BF:u8g.drawBitmapP(0, 0, 2, 16, wenn);u8g.drawBitmapP(16, 0, 2, 16, yang);
+      break;
+      case 0X1FEC03F:u8g.drawBitmapP(0, 0, 2, 16, er);u8g.drawBitmapP(16, 0, 2, 16, yao);u8g.drawBitmapP(32, 0, 2, 16, ling);
+      break;
+      default:u8g.print("Unkown");
+         }
+      }while( u8g.nextPage() );//u8glib规定的写法
+      
+      irrecv.resume(); // 接收下一个值
+      previousMillis = currentMillis;//存储本次循环结束时的时间点
+    }
+
+    if(currentMillis - previousMillis > interval) {//如果清醒时间大于了设置的时间
+      previousMillis = currentMillis; //清零清醒时间
+      Serial.println("Entering sleep");
+      enterSleep();//进入睡眠
+    }
+  if(currentMillis<previousMillis)
+    previousMillis=currentMillis=0; //如果系统计时器清0，则清0 所有计时器相关的变量。
+}
